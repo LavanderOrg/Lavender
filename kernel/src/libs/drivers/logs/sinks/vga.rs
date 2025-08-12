@@ -11,6 +11,32 @@ pub struct Vga<'a> {
     framebuffer: &'a Framebuffer<'a>,
     font: PsfFont,
     cursor_pos: (u32, u32),
+    foreground_color: u32,
+    background_color: u32
+}
+
+fn xterm_code_to_color(code: u8) -> u32 {
+    let mut r: u8 = 0;
+    let mut g: u8 = 0;
+    let mut b: u8 = 0;
+
+    if code <= 16 {
+        let mut level: u8 = 0;
+
+        level = if level > 8 { 255 } else if level == 7 { 229 } else { 205 };
+        r = if code == 8 { 127 } else if (code & 1) != 0 { level } else if code == 12 { 92 } else { 0 };
+        g = if code == 8 { 127 } else if (code & 2) != 0 { level } else if code == 12 { 92 } else { 0 };
+        b = if code == 8 { 127 } else if code == 4 { 238 } else if (code & 4) != 0 { level } else { 0 };
+    } else if code <= 231 {
+
+    } else {
+        let gray_level = (code - 232) * 10 + 8;
+
+        r = gray_level;
+        g = gray_level;
+        b = gray_level;
+    }
+    return 0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | b as u32;
 }
 
 impl<'a> Vga<'a> {
@@ -60,6 +86,12 @@ impl<'a> Vga<'a> {
         }
     }
 
+    fn handle_csi(&mut self, it: &mut core::str::Chars<'_>) {
+        let command = it.take_while(|x| *x == 'm');
+
+
+    }
+
     pub fn new(framebuffer: &'a Framebuffer<'a>) -> Self {
         let font = PsfFont::parse(FONT_DATA);
 
@@ -71,6 +103,8 @@ impl<'a> Vga<'a> {
             framebuffer,
             font: font.unwrap(),
             cursor_pos: (0, 0),
+            background_color: 0x0,
+            foreground_color: 0xFF
         }
     }
 }
@@ -101,9 +135,9 @@ impl<'a> Sink for Vga<'a> {
                     & (1 << 7 - (x % 8))
                     != 0
                 {
-                    0xFFFFFFFF
+                    self.foreground_color
                 } else {
-                    0x00000000
+                    self.background_color
                 };
 
                 let absolute_x: u64 =
@@ -136,7 +170,18 @@ impl<'a> Sink for Vga<'a> {
     }
 
     fn putstr(&mut self, s: &str) {
-        for c in s.chars() {
+        let mut it: core::str::Chars<'_> = s.chars().into_iter();
+
+        while let Some(c) = it.next() {
+            if c == '\x1b' {
+                let fc = it.next();
+
+                match fc {
+                    Some('[') => self.handle_csi(&mut it),
+                    Some(x) => self.putchar(x),
+                    None => ()
+                }
+           }
             self.putchar(c);
         }
     }
