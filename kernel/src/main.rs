@@ -65,7 +65,7 @@ static HHDM_REQUEST: HhdmRequest = HhdmRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
-static PLEVEL_REQUEST: PagingModeRequest = PagingModeRequest::new().with_max_mode(Mode::FIVE_LEVEL);
+static PLEVEL_REQUEST: PagingModeRequest = PagingModeRequest::new().with_mode(Mode::FIVE_LEVEL);
 
 #[used]
 #[unsafe(link_section = ".requests_end_marker")]
@@ -75,7 +75,15 @@ static mut KERNEL_CONTEXT: KernelContext<'static> = KernelContext {
     framebuffer: None,
     vga: None,
     logger: None,
-    boot_info: None,
+    boot_info: BootInfo {
+        limine_base_revision: Some(0),
+        kernel_phys_address: 0,
+        kernel_virt_address: 0,
+        hhdm: 0,
+        rtc_boot: None,
+        paging_level: None,
+        memory_map: None,
+    },
 };
 
 #[cfg(not(test))]
@@ -116,7 +124,7 @@ fn populate_boot_info(boot_info: &mut BootInfo) {
     boot_info.paging_level = Some(
         PLEVEL_REQUEST
             .get_response()
-            .map(|r| r.mode())
+            .map(|r: &limine::response::PagingModeResponse| r.mode())
             .unwrap_or(Mode::FOUR_LEVEL),
     );
     boot_info.memory_map = KMMAP_REQUEST.get_response();
@@ -137,8 +145,15 @@ fn print_boot_info(boot_info: &BootInfo) {
         }
     }
     info!(
-        "Kernel loaded at physical address {:#x} (virtual {:#x} - HHDM {:#x})",
-        boot_info.kernel_phys_address, boot_info.kernel_virt_address, boot_info.hhdm
+        "Kernel loaded at physical address {:#x} (virtual {:#x} - HHDM {:#x} - Paging levels {})",
+        boot_info.kernel_phys_address,
+        boot_info.kernel_virt_address,
+        boot_info.hhdm,
+        if boot_info.paging_level.unwrap() == Mode::FIVE_LEVEL {
+            5
+        } else {
+            4
+        }
     );
     match boot_info.rtc_boot {
         Some(rtc) => {
@@ -167,14 +182,19 @@ unsafe extern "C" fn kmain() -> ! {
 
     get_limine_framebuffer(&mut fb_request);
     unsafe {
-        KERNEL_CONTEXT.boot_info = Some(BootInfo::default());
+        KERNEL_CONTEXT.boot_info = BootInfo {
+            hhdm: 0,
+            kernel_phys_address: 0,
+            kernel_virt_address: 0,
+            ..Default::default()
+        };
         KERNEL_CONTEXT.framebuffer = Some(fb_request.unwrap());
         KERNEL_CONTEXT.vga = Some(drivers::logs::sinks::vga::Vga::new(
             KERNEL_CONTEXT.framebuffer.as_ref().unwrap(),
         ));
         KERNEL_CONTEXT.logger = Some(Logger::new(KERNEL_CONTEXT.vga.as_mut().unwrap()));
-        populate_boot_info(&mut KERNEL_CONTEXT.boot_info.as_mut().unwrap());
-        print_boot_info(&KERNEL_CONTEXT.boot_info.as_ref().unwrap());
+        populate_boot_info(&mut KERNEL_CONTEXT.boot_info);
+        print_boot_info(&KERNEL_CONTEXT.boot_info);
     };
 
     info!("Kernel started successully !");
@@ -186,5 +206,5 @@ unsafe extern "C" fn kmain() -> ! {
         *ptr = 42;
     }
 
-    panic!("Simulated event.");
+    hcf();
 }

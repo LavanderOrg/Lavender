@@ -51,6 +51,13 @@ macro_rules! warning {
 }
 
 #[macro_export]
+macro_rules! debug {
+    ($($args:tt)*) => {
+        $crate::_log!("[Debug] ", $($args)*)
+    };
+}
+
+#[macro_export]
 macro_rules! kpanic {
     ($($args:tt)*) => {
         $crate::_log!("[Panic !] ", $($args)*)

@@ -10,38 +10,37 @@ PHDRS
 
 SECTIONS
 {
-    /* We want to be placed in the topmost 2GiB of the address space, for optimisations */
-    /* and because that is what the Limine spec mandates. */
     . = 0xffffffff80000000;
 
     .text : {
+        LD_TEXT_START = .;
         *(.text .text.*)
+        LD_TEXT_END = .;
     } :text
 
     . = ALIGN(CONSTANT(MAXPAGESIZE));
     .rodata : {
+        LD_RODATA_START = .;
         *(.rodata .rodata.*)
+        LD_RODATA_END = .;
     } :rodata
 
     . = ALIGN(CONSTANT(MAXPAGESIZE));
     .data : {
+        LD_DATA_START = .;
         *(.data .data.*)
 
         KEEP(*(.requests_start_marker))
         KEEP(*(.requests))
         KEEP(*(.requests_end_marker))
+        LD_DATA_END = .;
     } :data
 
-    /* NOTE: .bss needs to be the last thing mapped to :data, otherwise lots of */
-    /* unnecessary zeros will be written to the binary. */
-    /* If you need, for example, .init_array and .fini_array, those should be placed */
-    /* above this. */
     .bss : {
         *(.bss .bss.*)
         *(COMMON)
     } :data
 
-    /* Discard .note.* and .eh_frame* since they may cause issues on some hosts. */
     /DISCARD/ : {
         *(.eh_frame*)
         *(.note .note.*)

@@ -9,6 +9,8 @@ cfg_select! {
     _ = { compile_error!("KrabOS only supports x86_64 architecture.")}
 }
 
+pub mod paging;
+
 pub fn init() {
     unsafe {
         internal::init();

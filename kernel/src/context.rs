@@ -21,5 +21,5 @@ pub struct KernelContext<'a> {
     // I hate myself for this.
     pub vga: Option<Vga<'a>>,
     pub logger: Option<Logger<'a>>,
-    pub boot_info: Option<BootInfo<'a>>,
+    pub boot_info: BootInfo<'a>,
 }
