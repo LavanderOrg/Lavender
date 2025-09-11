@@ -65,29 +65,34 @@ impl PageTable {
     ) -> *mut PageMapTableEntry {
         // Note: We're trying to go from the top level (5 in modern x86_64),
         // ensure that the level has an entry at the given address offset
-        // if not, allocate one, and repeat for the next level.
+        // if not, allocate one, and repeat for the next level until we reach PTE.
         let mut head = self.head & 0xFFFFFFFFFF000 | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
 
         for current_level in (2..(get_max_level() as u64 + 1)).rev() {
             unsafe {
-                let pm_ptr: *mut u64 = (head) as *mut u64;
+                let pm_ptr: *mut PageMapTableEntry = (head) as *mut PageMapTableEntry;
                 let current_level_offset = virt_addr.get_level_offset(
                     PaginationLevel::try_from(current_level).expect("Unknown pagination level."),
                 );
-                let pm = PageMapTableEntry::from(*(pm_ptr.offset(current_level_offset as isize)));
+                let pm_offset_ptr = pm_ptr.offset(current_level_offset as isize);
 
                 debug!(
                     "Address {:02x} ? Level {}, {}",
-                    virt_addr, current_level, pm
+                    virt_addr, current_level, *pm_offset_ptr
                 );
-                if !pm.get_flags().contains(PageEntryFlags::Present) && create {
+                if !(*pm_offset_ptr)
+                    .get_flags()
+                    .contains(PageEntryFlags::Present)
+                    && create
+                {
                     debug!(
                         "Allocating for address {:02x} as it is absent at level {}",
                         virt_addr, current_level
                     );
+                    (*pm_offset_ptr).set_flags(flags);
                 }
-                head =
-                    pm.get_address() & 0xFFFFFFFFFF000 | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
+                head = (*pm_offset_ptr).get_address() & 0xFFFFFFFFFF000
+                    | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
             }
         }
         head as *mut PageMapTableEntry
@@ -99,7 +104,6 @@ impl PageTable {
         phys_addr: PhysAddr,
         virt_addr: VirtAddr,
     ) {
-        
     }
 
     pub fn map_page_range(

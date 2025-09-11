@@ -4,6 +4,7 @@ use limine::paging::Mode;
 use crate::{KERNEL_CONTEXT, libs::generic::memory::paging::PaginationLevel};
 
 bitflags!(
+    #[derive(Copy, Clone)]
     pub struct PageEntryFlags: u64 {
         const Present = 1;
         const ReadWrite = 1 << 1;

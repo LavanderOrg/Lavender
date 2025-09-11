@@ -14,6 +14,10 @@ impl PageMapTableEntry {
     pub fn get_address(&self) -> u64 {
         self.inner & ADDRESS_MASK
     }
+
+    pub fn set_flags(&mut self, flags: PageEntryFlags) {
+        self.inner = flags.bits();
+    }
 }
 
 impl From<u64> for PageMapTableEntry {

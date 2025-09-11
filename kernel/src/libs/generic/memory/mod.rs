@@ -72,7 +72,7 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
     let pte = top_pt.get_pte(ld_text_start, false, PageEntryFlags::all());
 
     debug!(
-        "LD_TEXT_START Phys should be {:02x}",
+        "LD_TEXT_START Phys is at {:02x}",
         unsafe { pte.read().get_address() }
             + ld_text_start.get_level_offset(paging::PaginationLevel::Physical)
     );
