@@ -6,7 +6,7 @@ cfg_select! {
             pub use super::x86_64::*;
         }
     }
-    _ = { compile_error!("KrabOS only supports x86_64 architecture.")}
+    _ => { compile_error!("Lavender only supports x86_64 architecture.")}
 }
 
 pub mod paging;

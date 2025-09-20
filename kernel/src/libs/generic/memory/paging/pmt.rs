@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use crate::libs::arch::x86_64::memory::paging::paging::{ADDRESS_MASK, PageEntryFlags};
+use crate::libs::arch::x86_64::memory::paging::{ADDRESS_MASK, PageEntryFlags};
 
 pub struct PageMapTableEntry {
     inner: u64,

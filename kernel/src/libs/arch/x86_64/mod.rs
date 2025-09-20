@@ -2,7 +2,7 @@ use seq_macro::seq;
 
 use crate::KERNEL_CONTEXT;
 use crate::libs::arch::x86_64::cpu::CpuInfo;
-use crate::libs::arch::x86_64::memory::paging::paging::PageEntryFlags;
+use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
 use crate::libs::generic::memory::paging::pmt::PageMapTableEntry;
 use crate::{
     info,

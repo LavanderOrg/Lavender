@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use limine::paging::Mode;
 
-use crate::{KERNEL_CONTEXT, libs::generic::memory::paging::PaginationLevel};
+use crate::{libs::{arch::x86_64::registers::{cr3, write_cr3}, generic::memory::{address::PhysAddr, paging::PaginationLevel}}, KERNEL_CONTEXT};
 
 bitflags!(
     #[derive(Copy, Clone)]
@@ -42,4 +42,14 @@ pub fn get_page_frame_size() -> usize {
 #[inline]
 pub fn enforce_canonical() -> bool {
     true
+}
+
+#[inline]
+pub fn set_page_table_addr(addr: PhysAddr) {
+    write_cr3(addr.into());
+}
+
+#[inline]
+pub fn get_page_table_addr() -> PhysAddr {
+    PhysAddr::from(cr3() & 0xFFFFFFFFFF000)
 }

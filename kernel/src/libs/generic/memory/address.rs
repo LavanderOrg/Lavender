@@ -7,7 +7,9 @@ use crate::{
 
 #[derive(Copy, Clone)]
 pub struct VirtAddr(u64);
+#[derive(Copy, Clone)]
 pub struct PhysAddr(u64);
+
 #[derive(Debug)]
 pub struct NonCanonicalAddress(u64);
 
@@ -58,6 +60,12 @@ impl PhysAddr {
 impl From<u64> for PhysAddr {
     fn from(value: u64) -> Self {
         Self { 0: value }
+    }
+}
+
+impl Into<u64> for PhysAddr {
+    fn into(self) -> u64 {
+        self.0
     }
 }
 

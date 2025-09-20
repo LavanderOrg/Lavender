@@ -19,3 +19,9 @@ pub fn cr3() -> u64 {
 
     cr3
 }
+
+pub fn write_cr3(value: u64) {
+    unsafe {
+        asm!("mov cr3, {}", in(reg) value);
+    }
+}

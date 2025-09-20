@@ -1,15 +1,13 @@
 use crate::{
-    KERNEL_CONTEXT, debug,
-    libs::{
+    debug, libs::{
         arch::{
-            paging::get_max_level,
-            x86_64::{memory::paging::paging::PageEntryFlags, registers::cr3},
+            self, paging::get_max_level, x86_64::{memory::paging::PageEntryFlags}
         },
         generic::memory::{
             address::*, allocators::physical::pfa::PageFrameAllocator,
             paging::pmt::PageMapTableEntry,
         },
-    },
+    }, KERNEL_CONTEXT
 };
 
 pub mod pmt;
@@ -44,13 +42,17 @@ impl TryFrom<u64> for PaginationLevel {
 }
 
 pub struct PageTable {
-    pub head: u64,
+    pub head: PhysAddr,
     pub level: PaginationLevel,
 }
 
 impl PageTable {
-    pub fn new(head: u64, level: PaginationLevel) -> Self {
+    pub fn new(head: PhysAddr, level: PaginationLevel) -> Self {
         Self { head, level }
+    }
+
+    pub fn load(&self) {
+        arch::paging::set_page_table_addr(self.head);
     }
 
     // TODO: Abstract, this is only valid for x86
@@ -66,11 +68,11 @@ impl PageTable {
         // Note: We're trying to go from the top level (5 in modern x86_64),
         // ensure that the level has an entry at the given address offset
         // if not, allocate one, and repeat for the next level until we reach PTE.
-        let mut head = self.head & 0xFFFFFFFFFF000 | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
+        let mut head: u64 = Into::<u64>::into(self.head) | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
 
         for current_level in (2..(get_max_level() as u64 + 1)).rev() {
             unsafe {
-                let pm_ptr: *mut PageMapTableEntry = (head) as *mut PageMapTableEntry;
+                let pm_ptr: *mut PageMapTableEntry = head as *mut PageMapTableEntry;
                 let current_level_offset = virt_addr.get_level_offset(
                     PaginationLevel::try_from(current_level).expect("Unknown pagination level."),
                 );
@@ -91,7 +93,7 @@ impl PageTable {
                     );
                     (*pm_offset_ptr).set_flags(flags);
                 }
-                head = (*pm_offset_ptr).get_address() & 0xFFFFFFFFFF000
+                head = (*pm_offset_ptr).get_address()
                     | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
             }
         }

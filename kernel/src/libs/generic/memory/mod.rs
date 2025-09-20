@@ -1,9 +1,9 @@
 use crate::_log;
 use crate::debug;
 use crate::info;
+use crate::libs::arch::paging::get_page_table_addr;
 use crate::libs::arch::x86_64::LD_TEXT_START;
-use crate::libs::arch::x86_64::memory::paging::paging::PageEntryFlags;
-use crate::libs::arch::x86_64::registers::cr3;
+use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
 use crate::libs::generic::memory::address::VirtAddr;
 use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
 use crate::libs::generic::memory::allocators::physical::pfa::PageFrameAllocator;
@@ -67,7 +67,7 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
         (pfa.available_total() - pfa.used()) / 1024 / 1024
     );
 
-    let mut top_pt = PageTable::new(cr3(), crate::arch::paging::get_max_level());
+    let mut top_pt = PageTable::new(get_page_table_addr(), crate::arch::paging::get_max_level());
     let ld_text_start = VirtAddr::try_from(&raw const LD_TEXT_START as u64).unwrap();
     let pte = top_pt.get_pte(ld_text_start, false, PageEntryFlags::all());
 
