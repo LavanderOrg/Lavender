@@ -25,3 +25,8 @@ pub fn set_page_table_addr(addr: PhysAddr) {
 pub fn get_page_table_addr() -> PhysAddr {
     internal::memory::paging::get_page_table_addr()
 }
+
+#[inline]
+pub fn get_page_level_size() -> usize {
+    internal::memory::paging::get_page_level_size()
+}

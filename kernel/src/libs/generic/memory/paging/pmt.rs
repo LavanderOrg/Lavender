@@ -15,6 +15,10 @@ impl PageMapTableEntry {
         self.inner & ADDRESS_MASK
     }
 
+    pub fn set_address(&mut self, addr: u64) {
+        self.inner |= addr & ADDRESS_MASK;
+    }
+
     pub fn set_flags(&mut self, flags: PageEntryFlags) {
         self.inner = flags.bits();
     }

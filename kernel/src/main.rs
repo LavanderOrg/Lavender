@@ -11,8 +11,11 @@ pub mod libs;
 use core::arch::asm;
 
 use crate::context::{BootInfo, KernelContext};
+use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
 use crate::libs::generic::logging::logger::Logger;
 use crate::libs::generic::memory;
+use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
+use crate::libs::generic::memory::paging::PaginationLevel;
 use crate::libs::{arch, drivers};
 use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
@@ -202,6 +205,7 @@ unsafe extern "C" fn kmain() -> ! {
     memory::init(KMMAP_REQUEST.get_response());
 
     let ptr = 0xdeadbeef as *mut u8;
+
     unsafe {
         *ptr = 42;
     }

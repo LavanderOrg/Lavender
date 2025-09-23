@@ -51,5 +51,10 @@ pub fn set_page_table_addr(addr: PhysAddr) {
 
 #[inline]
 pub fn get_page_table_addr() -> PhysAddr {
-    PhysAddr::from(cr3() & 0xFFFFFFFFFF000)
+    PhysAddr::from(cr3() & ADDRESS_MASK)
+}
+
+#[inline]
+pub fn get_page_level_size() -> usize {
+    256 * 64
 }

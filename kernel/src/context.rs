@@ -1,7 +1,5 @@
 use core::time::Duration;
-
 use limine::{framebuffer::Framebuffer, paging::Mode, response::MemoryMapResponse};
-
 use crate::libs::{drivers::logs::sinks::vga::Vga, generic::logging::logger::Logger};
 
 #[derive(Default)]

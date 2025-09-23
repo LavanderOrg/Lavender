@@ -1,64 +1,91 @@
 use limine::memory_map::EntryType;
 
-use crate::libs::generic::memory::{
+use crate::libs::{arch, generic::memory::{
     address::PhysAddr, allocators::physical::pfa::PageFrameAllocator,
-};
+}};
 
-pub struct BumpAllocator {
-    // TODO: Refactor, I don't want limine references in the kernel after init.
+pub struct BumpAllocatorState {
     memory_map: &'static [&'static limine::memory_map::Entry],
     pfsize: usize,
     head: usize,
 }
 
+static mut STATE: BumpAllocatorState = BumpAllocatorState {
+    memory_map: &[],
+    pfsize: 0,
+    head: 0,
+};
+
+pub struct BumpAllocator {}
 impl BumpAllocator {
-    pub fn new(memory_map: &'static [&limine::memory_map::Entry], pfsize: usize) -> Self {
-        Self {
-            memory_map,
-            pfsize,
-            head: 0,
+    pub fn init(memory_map: &'static [&limine::memory_map::Entry], pfsize: usize) {
+        unsafe {
+            STATE.memory_map = memory_map;
+            STATE.pfsize = pfsize;
+            STATE.head = 0;
         }
     }
 
-    fn mem_iter(&self) -> impl Iterator<Item = u64> {
-        self.memory_map
+    fn mem_iter() -> impl Iterator<Item = u64> {
+        unsafe { STATE.memory_map
             .iter()
             .filter(|x| {
                 x.entry_type == EntryType::USABLE
-                    && x.length >= self.pfsize as u64
+                    && x.length >= STATE.pfsize as u64
                     && x.base > (1 << 16)
             })
             .map(|x| x.base..(x.base + x.length))
-            .flat_map(|x| x.step_by(self.pfsize))
+            .flat_map(|x| x.step_by(STATE.pfsize as usize)) }
     }
 }
 
 impl PageFrameAllocator for BumpAllocator {
-    fn allocate(&mut self, clear: bool) -> PhysAddr {
-        let head = PhysAddr::from(
-            self.mem_iter()
-                .nth(self.head)
-                .expect("Page frame allocator is out of usable memory."),
-        );
+    fn allocate(clear: bool) -> PhysAddr {
+        unsafe {
+            let head = PhysAddr::from(
+                BumpAllocator::mem_iter()
+                    .nth(STATE.head as usize)
+                    .expect("Page frame allocator is out of usable memory."),
+            );
 
-        self.head += 1;
-        if clear {
-            unsafe {
-                core::ptr::write_bytes(head.as_hhdm().into(), 0, self.pfsize);
+            STATE.head += 1;
+            if clear {
+                unsafe {
+                    core::ptr::write_bytes(head.as_hhdm().into(), 0, STATE.pfsize as usize);
+                }
             }
         }
-        head
+
+        PhysAddr::from(unsafe { STATE.head as u64 })
     }
 
-    fn free(&mut self) {
+    fn free() {
         panic!("Cannot call free() on a bump allocator.");
     }
 
-    fn available_total(&self) -> usize {
-        self.mem_iter().count() * self.pfsize
+    fn available_total() -> usize {
+        BumpAllocator::mem_iter().count() * unsafe { STATE.pfsize as usize }
     }
 
-    fn used(&self) -> usize {
-        self.head * self.pfsize
+    fn used() -> usize {
+        unsafe {
+            STATE.head as usize * STATE.pfsize as usize
+        }
+    }
+
+    fn allocate_contiguous_range(size: usize, clear: bool) -> PhysAddr {
+        let mut total_size = size;
+
+        if total_size == 0 {
+            total_size = arch::paging::get_page_frame_size();
+        }
+        let pages = total_size / arch::paging::get_page_frame_size() + 1;
+        let head = BumpAllocator::allocate(clear);
+
+        for _ in 1..pages {
+            BumpAllocator::allocate(clear);
+        }
+
+        head
     }
 }

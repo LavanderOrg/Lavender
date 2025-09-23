@@ -1,3 +1,5 @@
+use limine::paging::Mode;
+
 use crate::{
     debug, libs::{
         arch::{
@@ -21,6 +23,7 @@ pub enum PaginationLevel {
     Level4 = 4,
     Level5 = 5,
 }
+
 #[derive(Debug)]
 pub struct UnsupportedPaginationLevel;
 
@@ -36,6 +39,18 @@ impl TryFrom<u64> for PaginationLevel {
             3 => Ok(PaginationLevel::Level3),
             4 => Ok(PaginationLevel::Level4),
             5 => Ok(PaginationLevel::Level5),
+            _ => Err(UnsupportedPaginationLevel {}),
+        }
+    }
+}
+
+impl TryFrom<Mode> for PaginationLevel {
+    type Error = UnsupportedPaginationLevel;
+
+    fn try_from(value: Mode) -> Result<Self, Self::Error> {
+        match value {
+            Mode::FOUR_LEVEL => Ok(PaginationLevel::Level4),
+            Mode::FIVE_LEVEL => Ok(PaginationLevel::Level5),
             _ => Err(UnsupportedPaginationLevel {}),
         }
     }
@@ -59,7 +74,7 @@ impl PageTable {
     // TODO: Support different flags for each entry
     // Get the page table entry for a virtual address, if create is true
     // we create the leaf at each level until L0 (physical offset)
-    pub fn get_pte(
+    pub fn get_pte<P: PageFrameAllocator>(
         &mut self,
         virt_addr: VirtAddr,
         create: bool,
@@ -76,7 +91,7 @@ impl PageTable {
                 let current_level_offset = virt_addr.get_level_offset(
                     PaginationLevel::try_from(current_level).expect("Unknown pagination level."),
                 );
-                let pm_offset_ptr = pm_ptr.offset(current_level_offset as isize);
+                let pm_offset_ptr: *mut PageMapTableEntry = pm_ptr.offset(current_level_offset as isize);
 
                 debug!(
                     "Address {:02x} ? Level {}, {}",
@@ -91,7 +106,14 @@ impl PageTable {
                         "Allocating for address {:02x} as it is absent at level {}",
                         virt_addr, current_level
                     );
-                    (*pm_offset_ptr).set_flags(flags);
+                    /*let new_table_frame = P::allocate_contiguous_range(arch::paging::get_page_level_size(), true);
+
+                    (*pm_offset_ptr).set_address(new_table_frame.into());
+                    (*pm_offset_ptr).set_flags(
+                            PageEntryFlags::Present
+                            | PageEntryFlags::ReadWrite
+                            | flags,
+                    );*/
                 }
                 head = (*pm_offset_ptr).get_address()
                     | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
@@ -100,17 +122,19 @@ impl PageTable {
         head as *mut PageMapTableEntry
     }
 
-    pub fn map_page(
+    pub fn map_page<P: PageFrameAllocator>(
         &mut self,
-        allocator: &mut dyn PageFrameAllocator,
         phys_addr: PhysAddr,
         virt_addr: VirtAddr,
+        flags: PageEntryFlags,
     ) {
+        let pte = self.get_pte::<P>(virt_addr, true, flags);
+
+        unsafe { (*pte).set_address(phys_addr.into()) };
     }
 
-    pub fn map_page_range(
+    pub fn map_page_range<P: PageFrameAllocator>(
         &mut self,
-        allocator: &mut dyn PageFrameAllocator,
         phys_addr: PhysAddr,
         virt_addr: VirtAddr,
     ) {

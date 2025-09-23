@@ -7,6 +7,7 @@ use crate::{
 
 #[derive(Copy, Clone)]
 pub struct VirtAddr(u64);
+
 #[derive(Copy, Clone)]
 pub struct PhysAddr(u64);
 
