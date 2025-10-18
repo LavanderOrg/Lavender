@@ -1,4 +1,4 @@
-use core::fmt::{Display, Formatter, LowerHex};
+use core::fmt::{Formatter, LowerHex};
 
 use crate::{
     KERNEL_CONTEXT,

@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use crate::libs::arch::x86_64::memory::paging::{ADDRESS_MASK, PageEntryFlags};
+use crate::{debug, libs::arch::x86_64::memory::paging::{PageEntryFlags, ADDRESS_MASK}};
 
 pub struct PageMapTableEntry {
     inner: u64,
@@ -12,15 +12,17 @@ impl PageMapTableEntry {
     }
 
     pub fn get_address(&self) -> u64 {
+        //debug!("get_address(), inner {:02x}", self.inner);
         self.inner & ADDRESS_MASK
     }
 
     pub fn set_address(&mut self, addr: u64) {
         self.inner |= addr & ADDRESS_MASK;
+        //debug!("set_address(0x{:02x}), inner {:02x}", self.inner & ADDRESS_MASK, self.inner);
     }
 
     pub fn set_flags(&mut self, flags: PageEntryFlags) {
-        self.inner = flags.bits();
+        self.inner |= flags.bits();
     }
 }
 

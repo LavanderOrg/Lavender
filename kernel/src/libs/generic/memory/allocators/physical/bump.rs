@@ -41,13 +41,13 @@ impl BumpAllocator {
 
 impl PageFrameAllocator for BumpAllocator {
     fn allocate(clear: bool) -> PhysAddr {
-        unsafe {
-            let head = PhysAddr::from(
-                BumpAllocator::mem_iter()
-                    .nth(STATE.head as usize)
-                    .expect("Page frame allocator is out of usable memory."),
-            );
+        let head = PhysAddr::from(
+            BumpAllocator::mem_iter()
+                .nth(unsafe { STATE.head as usize })
+                .expect("Page frame allocator is out of usable memory."),
+        );
 
+        unsafe {
             STATE.head += 1;
             if clear {
                 unsafe {
@@ -55,8 +55,7 @@ impl PageFrameAllocator for BumpAllocator {
                 }
             }
         }
-
-        PhysAddr::from(unsafe { STATE.head as u64 })
+        return head;
     }
 
     fn free() {

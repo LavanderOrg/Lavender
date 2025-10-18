@@ -1,17 +1,15 @@
 use crate::_log;
 use crate::debug;
-use crate::info;
 use crate::libs::arch;
+use crate::libs::arch::paging::get_page_level_size;
 use crate::libs::arch::paging::get_page_table_addr;
 use crate::libs::arch::x86_64::LD_TEXT_START;
 use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
-use crate::libs::generic::memory;
 use crate::libs::generic::memory::address::PhysAddr;
 use crate::libs::generic::memory::address::VirtAddr;
 use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
 use crate::libs::generic::memory::allocators::physical::pfa::PageFrameAllocator;
 use crate::libs::generic::memory::paging::PageTable;
-use crate::KERNEL_CONTEXT;
 use limine::{memory_map::EntryType, response::MemoryMapResponse};
 
 pub mod address;
@@ -22,6 +20,27 @@ pub mod allocators {
         pub mod bump;
         pub mod pfa;
     }
+}
+
+fn remap_kernel_section(new_pt: &mut PageTable, old_pt: &mut PageTable, section_address: VirtAddr, flags: PageEntryFlags) {
+    let section_physical_addr: PhysAddr = unsafe {
+        PhysAddr::try_from(
+            old_pt.get_pte::<BumpAllocator>(
+                section_address,
+                false,
+                PageEntryFlags::empty(),
+            )
+            .read()
+            .get_address()
+                + section_address.get_level_offset(paging::PaginationLevel::Physical),
+        )
+        .unwrap()
+    };
+
+    new_pt.map_page::<BumpAllocator>(
+    section_physical_addr,
+    section_address,
+        flags | PageEntryFlags::UserSupervisor);
 }
 
 pub fn init(mmap: Option<&'static MemoryMapResponse>) {
@@ -61,23 +80,21 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
         BumpAllocator::available_total() / 1024 / 1024
     );
 
-    let mut top_pt = PageTable::new(get_page_table_addr(), crate::arch::paging::get_max_level());
+    let mut bootloader_pte = PageTable::new(get_page_table_addr(), crate::arch::paging::get_max_level());
     let ld_text_start = VirtAddr::try_from(&raw const LD_TEXT_START as u64).unwrap();
-    let pte = top_pt.get_pte::<BumpAllocator>(ld_text_start, false, PageEntryFlags::all());
+    let pte = bootloader_pte.get_pte::<BumpAllocator>(ld_text_start, false, PageEntryFlags::all());
 
     debug!(
-        "LD_TEXT_START Phys is at {:02x}",
+        "LD_TEXT_START Phys is at 0x{:02x}, Virt is at 0x{:02x}",
         unsafe { pte.read().get_address() }
-            + ld_text_start.get_level_offset(paging::PaginationLevel::Physical)
+            + ld_text_start.get_level_offset(paging::PaginationLevel::Physical), ld_text_start
     );
 
-    let mut kernel_pt = memory::paging::PageTable::new(arch::paging::get_page_table_addr(), arch::paging::get_max_level());
+    let new_pte: PhysAddr = BumpAllocator::allocate_contiguous_range(get_page_level_size(), true);
+    let mut kernel_pt: PageTable = PageTable::new(new_pte, arch::paging::get_max_level());
 
-    kernel_pt.map_page::<BumpAllocator>(
-        PhysAddr::try_from(&raw const LD_TEXT_START as u64).unwrap(),
-        VirtAddr::try_from(0xffff6900000).unwrap(),
-        PageEntryFlags::UserSupervisor);
-    let pte = kernel_pt.get_pte::<BumpAllocator>(VirtAddr::try_from(0xffff6900000).unwrap(), false, PageEntryFlags::empty());
+    remap_kernel_section(&mut kernel_pt ,&mut bootloader_pte, ld_text_start, PageEntryFlags::UserSupervisor);
+    let pte: *mut paging::pmt::PageMapTableEntry = kernel_pt.get_pte::<BumpAllocator>(ld_text_start, false, PageEntryFlags::empty());
 
     debug!(
         "New LD_TEXT_START Phys is at {:02x}",

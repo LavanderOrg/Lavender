@@ -44,6 +44,21 @@ impl TryFrom<u64> for PaginationLevel {
     }
 }
 
+impl TryFrom<PaginationLevel> for u64 {
+    type Error = UnsupportedPaginationLevel;
+
+    fn try_from(value: PaginationLevel) -> Result<Self, Self::Error> {
+        match value {
+            PaginationLevel::Physical => Ok(0),
+            PaginationLevel::Level1 => Ok(1),
+            PaginationLevel::Level2 => Ok(2),
+            PaginationLevel::Level3 => Ok(3),
+            PaginationLevel::Level4 => Ok(4),
+            PaginationLevel::Level5 => Ok(5),
+        }
+    }
+}
+
 impl TryFrom<Mode> for PaginationLevel {
     type Error = UnsupportedPaginationLevel;
 
@@ -77,7 +92,7 @@ impl PageTable {
     pub fn get_pte<P: PageFrameAllocator>(
         &mut self,
         virt_addr: VirtAddr,
-        create: bool,
+        allocate: bool,
         flags: PageEntryFlags,
     ) -> *mut PageMapTableEntry {
         // Note: We're trying to go from the top level (5 in modern x86_64),
@@ -85,6 +100,7 @@ impl PageTable {
         // if not, allocate one, and repeat for the next level until we reach PTE.
         let mut head: u64 = Into::<u64>::into(self.head) | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
 
+        debug!("Top level paging address: 0x{:02x}", head);
         for current_level in (2..(get_max_level() as u64 + 1)).rev() {
             unsafe {
                 let pm_ptr: *mut PageMapTableEntry = head as *mut PageMapTableEntry;
@@ -93,28 +109,29 @@ impl PageTable {
                 );
                 let pm_offset_ptr: *mut PageMapTableEntry = pm_ptr.offset(current_level_offset as isize);
 
-                debug!(
-                    "Address {:02x} ? Level {}, {}",
-                    virt_addr, current_level, *pm_offset_ptr
-                );
                 if !(*pm_offset_ptr)
                     .get_flags()
                     .contains(PageEntryFlags::Present)
-                    && create
+                    && allocate
                 {
                     debug!(
-                        "Allocating for address {:02x} as it is absent at level {}",
+                        "Allocating for address 0x{:02x} as it is absent at level {}",
                         virt_addr, current_level
                     );
-                    /*let new_table_frame = P::allocate_contiguous_range(arch::paging::get_page_level_size(), true);
+                    let new_table_frame = P::allocate_contiguous_range(arch::paging::get_page_level_size(), true);
 
+                    //debug!("New table frame at 0x{:02x}", new_table_frame);
                     (*pm_offset_ptr).set_address(new_table_frame.into());
                     (*pm_offset_ptr).set_flags(
                             PageEntryFlags::Present
                             | PageEntryFlags::ReadWrite
                             | flags,
-                    );*/
+                    );
                 }
+                debug!(
+                    "Address 0x{:02x} ? Head 0x{:02x} Level {}, 0x{:02x}",
+                    virt_addr, head, current_level, (*pm_offset_ptr).get_address()
+                );
                 head = (*pm_offset_ptr).get_address()
                     | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
             }
