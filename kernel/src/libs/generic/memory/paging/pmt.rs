@@ -1,7 +1,8 @@
 use core::fmt::Display;
 
-use crate::{debug, libs::arch::x86_64::memory::paging::{PageEntryFlags, ADDRESS_MASK}};
+use crate::{debug, libs::{arch::x86_64::memory::paging::{PageEntryFlags, ADDRESS_MASK}, generic::memory::address::{PhysAddr, VirtAddr}}};
 
+#[derive(Clone, Copy)]
 pub struct PageMapTableEntry {
     inner: u64,
 }
@@ -11,9 +12,9 @@ impl PageMapTableEntry {
         PageEntryFlags::from_bits_truncate(self.inner)
     }
 
-    pub fn get_address(&self) -> u64 {
+    pub fn get_address(&self) -> PhysAddr {
         //debug!("get_address(), inner {:02x}", self.inner);
-        self.inner & ADDRESS_MASK
+        PhysAddr::from(self.inner & ADDRESS_MASK)
     }
 
     pub fn set_address(&mut self, addr: u64) {
@@ -50,7 +51,7 @@ impl Display for PageMapTableEntry {
             } else {
                 "Read-Only"
             },
-            if flag.contains(PageEntryFlags::UserSupervisor) {
+            if flag.contains(PageEntryFlags::User) {
                 "User"
             } else {
                 "Supervisor"

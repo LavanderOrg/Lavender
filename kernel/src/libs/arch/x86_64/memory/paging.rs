@@ -8,7 +8,7 @@ bitflags!(
     pub struct PageEntryFlags: u64 {
         const Present = 1;
         const ReadWrite = 1 << 1;
-        const UserSupervisor = 1 << 2;
+        const User = 1 << 2;
         const WriteThrough = 1 << 3;
         const CacheDisabled = 1 << 4;
         const Accessed = 1 << 5;
@@ -46,7 +46,7 @@ pub fn enforce_canonical() -> bool {
 
 #[inline]
 pub fn set_page_table_addr(addr: PhysAddr) {
-    write_cr3(addr.into());
+    write_cr3((cr3() & 0xFFF) | Into::<u64>::into(addr));
 }
 
 #[inline]

@@ -3,7 +3,7 @@ use limine::paging::Mode;
 use crate::{
     debug, libs::{
         arch::{
-            self, paging::get_max_level, x86_64::{memory::paging::PageEntryFlags}
+            self, internal, paging::get_max_level, x86_64::memory::paging::{PageEntryFlags}
         },
         generic::memory::{
             address::*, allocators::physical::pfa::PageFrameAllocator,
@@ -11,6 +11,8 @@ use crate::{
         },
     }, KERNEL_CONTEXT
 };
+
+use num_traits::PrimInt;
 
 pub mod pmt;
 
@@ -26,6 +28,8 @@ pub enum PaginationLevel {
 
 #[derive(Debug)]
 pub struct UnsupportedPaginationLevel;
+
+pub type UnmappedAddressError = ();
 
 // TODO: Refactor, there's probably a way better way to do that lol.
 impl TryFrom<u64> for PaginationLevel {
@@ -85,6 +89,40 @@ impl PageTable {
         arch::paging::set_page_table_addr(self.head);
     }
 
+    pub fn dump(&self) {
+        unsafe {
+            for i in 0..512 {
+                let pm_ptr: *mut PageMapTableEntry = self.head.as_hhdm().as_mut_ptr::<PageMapTableEntry>().offset(i as isize);
+                let pm: PageMapTableEntry = *pm_ptr;
+
+                if pm.get_flags().contains(PageEntryFlags::Present) && i == 0x100 {
+                    debug!("PMT L4 at {:02x} (index {:02x}): {}", pm_ptr.addr(), i, pm);
+                    for j in 0..512 {
+                        let pm4: *mut PageMapTableEntry = ((pm.get_address().as_hhdm().as_mut_ptr()) as *mut PageMapTableEntry).offset(j);
+
+                        if (*pm4).get_flags().contains(PageEntryFlags::Present) && j == 0x1 {
+                            debug!("     PDP at 0x{:02x} (index {:02x}): {}", pm4.addr() as usize, j, *pm4);
+                            for k in 0..512 {
+                                let pdpe: *mut PageMapTableEntry = ((*pm4).get_address().as_hhdm().as_mut_ptr() as *mut PageMapTableEntry).offset(k);
+
+                                if k == 0x1D1 && (*pdpe).get_flags().contains(PageEntryFlags::Present) {
+                                    debug!("         PD at 0x{:02x} (index {:02x}): {}", pdpe.addr(), k, *pdpe);
+                                    for l in 0..512 {
+                                        let pde: *mut PageMapTableEntry = ((*pdpe).get_address().as_hhdm().as_mut_ptr() as *mut PageMapTableEntry).offset(l);
+
+                                        if l == 0x1b8 && (*pde).get_flags().contains(PageEntryFlags::Present) {
+                                            debug!("             PT at 0x{:02x}: {}", pde.addr(), *pde);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // TODO: Abstract, this is only valid for x86
     // TODO: Support different flags for each entry
     // Get the page table entry for a virtual address, if create is true
@@ -94,13 +132,13 @@ impl PageTable {
         virt_addr: VirtAddr,
         allocate: bool,
         flags: PageEntryFlags,
-    ) -> *mut PageMapTableEntry {
+    ) -> Result<*mut PageMapTableEntry, UnmappedAddressError> {
         // Note: We're trying to go from the top level (5 in modern x86_64),
         // ensure that the level has an entry at the given address offset
         // if not, allocate one, and repeat for the next level until we reach PTE.
-        let mut head: u64 = Into::<u64>::into(self.head) | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
+        let mut head: *mut PageMapTableEntry = unsafe { self.head.as_hhdm().as_mut_ptr() };
 
-        debug!("Top level paging address: 0x{:02x}", head);
+        // debug!("Top level paging address: 0x{:02x}", head);
         for current_level in (2..(get_max_level() as u64 + 1)).rev() {
             unsafe {
                 let pm_ptr: *mut PageMapTableEntry = head as *mut PageMapTableEntry;
@@ -112,12 +150,14 @@ impl PageTable {
                 if !(*pm_offset_ptr)
                     .get_flags()
                     .contains(PageEntryFlags::Present)
-                    && allocate
                 {
-                    debug!(
+                    if !allocate {
+                        return Err(());
+                    }
+                    /*debug!(
                         "Allocating for address 0x{:02x} as it is absent at level {}",
                         virt_addr, current_level
-                    );
+                    );*/
                     let new_table_frame = P::allocate_contiguous_range(arch::paging::get_page_level_size(), true);
 
                     //debug!("New table frame at 0x{:02x}", new_table_frame);
@@ -128,15 +168,14 @@ impl PageTable {
                             | flags,
                     );
                 }
-                debug!(
+                /*debug!(
                     "Address 0x{:02x} ? Head 0x{:02x} Level {}, 0x{:02x}",
                     virt_addr, head, current_level, (*pm_offset_ptr).get_address()
-                );
-                head = (*pm_offset_ptr).get_address()
-                    | unsafe { KERNEL_CONTEXT.boot_info.hhdm };
+                );*/
+                head = (*pm_offset_ptr).get_address().as_hhdm().as_mut_ptr::<PageMapTableEntry>();
             }
         }
-        head as *mut PageMapTableEntry
+        unsafe { Ok((head as *mut PageMapTableEntry).offset(virt_addr.get_level_offset(PaginationLevel::Level1) as isize)) }
     }
 
     pub fn map_page<P: PageFrameAllocator>(
@@ -145,15 +184,34 @@ impl PageTable {
         virt_addr: VirtAddr,
         flags: PageEntryFlags,
     ) {
-        let pte = self.get_pte::<P>(virt_addr, true, flags);
+        let pte = self.get_pte::<P>(virt_addr, true, flags).unwrap();
 
+        // debug!("Mapping phys 0x{:02x} to virt 0x{:02x} for PTE 0x{:02x}", phys_addr, virt_addr, pte.addr());
         unsafe { (*pte).set_address(phys_addr.into()) };
+    }
+
+    #[inline]
+    pub fn align_up<T: PrimInt>(value: T, alignment: T) -> T {
+        let mask = alignment - T::one();
+        (value + mask) & !mask
     }
 
     pub fn map_page_range<P: PageFrameAllocator>(
         &mut self,
         phys_addr: PhysAddr,
         virt_addr: VirtAddr,
+        flags: PageEntryFlags,
+        length: usize
     ) {
+        let length = Self::align_up(length, internal::memory::paging::get_page_frame_size());
+        let step = internal::memory::paging::get_page_frame_size();
+
+        for i in (0..length).step_by(step) {
+            self.map_page::<P>(
+    phys_addr + i,
+    virt_addr + i,
+            flags
+            );
+        }
     }
 }

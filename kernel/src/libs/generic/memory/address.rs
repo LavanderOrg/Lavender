@@ -1,8 +1,7 @@
-use core::fmt::{Formatter, LowerHex};
+use core::{fmt::{Formatter, LowerHex}, ops::{Add, Sub}};
 
 use crate::{
-    KERNEL_CONTEXT,
-    libs::{arch, generic::memory::paging::PaginationLevel},
+    debug, libs::{arch, generic::memory::paging::PaginationLevel}, KERNEL_CONTEXT
 };
 
 #[derive(Copy, Clone)]
@@ -22,6 +21,24 @@ impl VirtAddr {
             return self.0 & 0xFFF;
         }
         (self.0 >> 12 >> ((level as u64 - 1) * 9)) & 0x1FF
+    }
+
+    pub unsafe fn as_ptr<T>(&self) -> *const T {
+        self.0 as *const T
+    }
+
+    pub unsafe fn as_mut_ptr<T>(&self) -> *mut T {
+        self.0 as *mut T
+    }
+
+    pub unsafe fn dump_offsets(&self) {
+        debug!("{:02x} offsets: L5={:02x} L4={:02x} PDP={:02x} PD={:02x} PT={:02x}", self.0,
+            self.get_level_offset(PaginationLevel::Level5),
+            self.get_level_offset(PaginationLevel::Level4),
+            self.get_level_offset(PaginationLevel::Level3),
+            self.get_level_offset(PaginationLevel::Level2),
+            self.get_level_offset(PaginationLevel::Level1),
+        );
     }
 }
 
@@ -45,6 +62,18 @@ impl TryFrom<u64> for VirtAddr {
 impl LowerHex for VirtAddr {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:02x}", self.0)
+    }
+}
+
+impl Into<u64> for VirtAddr {
+    fn into(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<VirtAddr> for usize {
+    fn from(value: VirtAddr) -> Self {
+        value.0 as usize
     }
 }
 
@@ -73,6 +102,30 @@ impl Into<u64> for PhysAddr {
 impl LowerHex for PhysAddr {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:02x}", self.0)
+    }
+}
+
+impl Add<usize> for PhysAddr {
+    type Output = PhysAddr;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        PhysAddr { 0: self.0.wrapping_add(rhs as u64) }
+    }
+}
+
+impl Add<usize> for VirtAddr {
+    type Output = VirtAddr;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        VirtAddr { 0: self.0.wrapping_add(rhs as u64) }
+    }
+}
+
+impl Sub<VirtAddr> for VirtAddr {
+    type Output = VirtAddr;
+
+    fn sub(self, rhs: VirtAddr) -> Self::Output {
+        VirtAddr { 0: self.0.wrapping_sub(rhs.0) }
     }
 }
 
