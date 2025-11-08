@@ -91,7 +91,7 @@ pub unsafe fn init() {
                 .contains(cpu::BasicFeaturesFlags::APIC)
         );
         // Unmask PIC
-        //asm!("mov al, 0x1", "out 0x21, al", "out 0xa1, al",);
+        asm!("mov al, 0x1", "out 0x21, al", "out 0xa1, al",);
         info!("PIC unmasked");
 
         info!("LD_TEXT_START: {:02x}", &raw const LD_TEXT_START as usize);

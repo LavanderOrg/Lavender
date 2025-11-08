@@ -24,7 +24,6 @@ pub fn cr3() -> u64 {
 
 pub fn write_cr3(value: u64) {
     unsafe {
-        debug!("Writing CR3 with value: 0x{:02x}", value);
         asm!("mov cr3, {addr}", addr = in(reg) (value));
     }
 }
