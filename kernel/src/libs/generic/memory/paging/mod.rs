@@ -208,13 +208,6 @@ impl PageTable {
         let length = Self::align_up(length, internal::memory::paging::get_page_frame_size());
         let step = internal::memory::paging::get_page_frame_size();
 
-        debug!(
-            "Mapping page range: phys 0x{:02x} to virt 0x{:02x}-0x{:02x}, length 0x{:02x}",
-            phys_addr,
-            virt_addr,
-            virt_addr + length,
-            length
-        );
         for i in (0..length).step_by(step) {
             self.map_page::<P>(
     phys_addr + i,

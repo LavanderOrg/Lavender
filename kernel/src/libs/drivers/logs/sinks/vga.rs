@@ -71,8 +71,6 @@ impl<'a> Vga<'a> {
             framebuffer,
             font: font.unwrap(),
             cursor_pos: (0, 0),
-            background_color: 0x0,
-            foreground_color: 0xFFFFFF
         }
     }
 }

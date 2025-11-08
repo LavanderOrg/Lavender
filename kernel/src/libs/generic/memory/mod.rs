@@ -40,11 +40,6 @@ fn remap_kernel_section(new_pt: &mut PageTable, old_pt: &mut PageTable, section_
         PhysAddr::try_from(pte.get_address() + offset as usize).unwrap()
     };
 
-    debug!(
-        "Remapping kernel section from phys 0x{:02x} to virt 0x{:02x}",
-        section_physical_addr,
-        section_address_start
-    );
     new_pt.map_page_range::<BumpAllocator>(
         section_physical_addr,
         section_address_start,
@@ -92,9 +87,10 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
 
     let mut bootloader_pte = PageTable::new(get_page_table_addr(), crate::arch::paging::get_max_level());
     debug!("Bootloader page table: 0x{:02x}", get_page_table_addr());
-    bootloader_pte.dump();
+
     let new_pt: PhysAddr = BumpAllocator::allocate_contiguous_range(get_page_level_size(), true);
     debug!("New page table allocated at phys 0x{:02x}", new_pt);
+
     let sections: [(u64, u64, PageEntryFlags); 3] = [
         (&raw const LD_TEXT_START as u64, &raw const LD_TEXT_END as u64, PageEntryFlags::from_bits_retain(39) ),
         (&raw const LD_RODATA_START as u64, &raw const LD_RODATA_END as u64, PageEntryFlags::ExecuteDisabled),
@@ -112,16 +108,7 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
             &mut bootloader_pte,
             section_start,
             section_end, section.2);
-        kernel_pt.dump();
-        let pte: *mut paging::pmt::PageMapTableEntry = kernel_pt.get_pte::<BumpAllocator>(section_start, false, PageEntryFlags::all()).unwrap();
-
-        debug!(
-            "New section phys is at 0x{:02x}, Virt is at 0x{:02x}",
-            unsafe { pte.read().get_address() + section_start.get_level_offset(paging::PaginationLevel::Physical) as usize}, section_start
-        );
     }
-
-    // You mapped out the stack retard
 
     debug!("Remapped kernel sections.");
     entries.iter()
@@ -138,53 +125,7 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
                 PageEntryFlags::Present | PageEntryFlags::ReadWrite,
                 section.length as usize);
         });
-
-    bootloader_pte.dump();
-    kernel_pt.dump();
-
-    /*kernel_pt.map_page::<BumpAllocator>(
-                0x0.into(),
-                VirtAddr::try_from(0xffff80007a3bf138).unwrap(),
-                PageEntryFlags::from_bits_retain(0),
-                );*/
-
-    let cr2: VirtAddr = VirtAddr::try_from(0xffffffff8001d050).unwrap();
-    let pte_old = bootloader_pte.get_pte::<BumpAllocator>(cr2, false, PageEntryFlags::empty());
-    let pte_new = kernel_pt.get_pte::<BumpAllocator>(cr2, false, PageEntryFlags::empty());
-
-    unsafe { cr2.dump_offsets() };
-    debug!("CR2 Address on OLD PT ? {}, {}, PTE_addr={:02x} ADD_off={:02x} Final={:02x}",
-        pte_old.is_ok(),
-        pte_old.unwrap().read().get_flags().bits(),
-        pte_old.unwrap().read().get_address(),
-        cr2.get_level_offset(paging::PaginationLevel::Physical) as usize,
-        pte_old.unwrap().read().get_address() + cr2.get_level_offset(paging::PaginationLevel::Physical) as usize);
-    debug!("CR2 Address on NEW PT ? {}, {}, PTE_addr={:02x} ADD_off={:02x} Final={:02x}",
-        pte_new.is_ok(),
-        pte_new.unwrap().read().get_flags().bits(),
-        pte_new.unwrap().read().get_address(),
-        cr2.get_level_offset(paging::PaginationLevel::Physical) as usize,
-        pte_new.unwrap().read().get_address() + cr2.get_level_offset(paging::PaginationLevel::Physical) as usize);
+    debug!("Mapped usable memory sections.");
     kernel_pt.load();
-    debug!("Loaded new PT.");
-    while 1 == 1 {
-
-    }
-
-
-
-    /*
-
-    debug!(
-        "LD_TEXT_START Phys is at 0x{:02x}, Virt is at 0x{:02x}",
-        unsafe { pte.read().get_address() }
-            + ld_text_start.get_level_offset(paging::PaginationLevel::Physical), ld_text_start
-    );
-
-
-
-    remap_kernel_section(&mut kernel_pt ,&mut bootloader_pte, ld_text_start, PageEntryFlags::UserSupervisor);
-    let pte: *mut paging::pmt::PageMapTableEntry = kernel_pt.get_pte::<BumpAllocator>(ld_text_start, false, PageEntryFlags::empty());
-
-    */
+    debug!("Loaded new page table, ready to allocate memory.");
 }

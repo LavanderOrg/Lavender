@@ -68,8 +68,8 @@ fn init_idt() {
 
 #[allow(static_mut_refs)]
 pub unsafe fn init() {
-   // gdt::load(unsafe { &mut CPU_CONTEXT.gdt });
-    //init_idt();
+    gdt::load(unsafe { &mut CPU_CONTEXT.gdt });
+    init_idt();
 
     unsafe {
         CPU_CONTEXT.info = Some(CpuInfo::new());
