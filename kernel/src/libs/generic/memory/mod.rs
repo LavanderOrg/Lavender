@@ -15,6 +15,7 @@ use crate::libs::generic::memory::address::VirtAddr;
 use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
 use crate::libs::generic::memory::allocators::physical::pfa::PageFrameAllocator;
 use crate::libs::generic::memory::paging::PageTable;
+use limine::memory_map::Entry;
 use limine::{memory_map::EntryType, response::MemoryMapResponse};
 
 pub mod address;
@@ -95,9 +96,9 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
     let new_pt: PhysAddr = BumpAllocator::allocate_contiguous_range(get_page_level_size(), true);
     debug!("New page table allocated at phys 0x{:02x}", new_pt);
     let sections: [(u64, u64, PageEntryFlags); 3] = [
-        (&raw const LD_TEXT_START as u64, &raw const LD_TEXT_END as u64, PageEntryFlags::empty() ),
+        (&raw const LD_TEXT_START as u64, &raw const LD_TEXT_END as u64, PageEntryFlags::from_bits_retain(39) ),
         (&raw const LD_RODATA_START as u64, &raw const LD_RODATA_END as u64, PageEntryFlags::ExecuteDisabled),
-        (&raw const LD_DATA_START as u64, &raw const LD_DATA_END as u64, PageEntryFlags::ExecuteDisabled | PageEntryFlags::ReadWrite),
+        (&raw const LD_DATA_START as u64, &raw const LD_DATA_END as u64, PageEntryFlags::Accessed | PageEntryFlags::Dirty | PageEntryFlags::ReadWrite | PageEntryFlags::ExecuteDisabled),
     ];
     let mut kernel_pt: PageTable = PageTable::new(new_pt, arch::paging::get_max_level());
 
@@ -111,7 +112,7 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
             &mut bootloader_pte,
             section_start,
             section_end, section.2);
-        //kernel_pt.dump();
+        kernel_pt.dump();
         let pte: *mut paging::pmt::PageMapTableEntry = kernel_pt.get_pte::<BumpAllocator>(section_start, false, PageEntryFlags::all()).unwrap();
 
         debug!(
@@ -120,30 +121,50 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
         );
     }
 
+    // You mapped out the stack retard
 
     debug!("Remapped kernel sections.");
     entries.iter()
         .filter(|entry|
             entry.entry_type == EntryType::USABLE ||
             entry.entry_type == EntryType::ACPI_RECLAIMABLE ||
-            entry.entry_type == EntryType::BOOTLOADER_RECLAIMABLE)
+            entry.entry_type == EntryType::BOOTLOADER_RECLAIMABLE ||
+            entry.entry_type == EntryType::FRAMEBUFFER
+    )
         .for_each(|section| {
             kernel_pt.map_page_range::<BumpAllocator>(
                 section.base.into(),
                 PhysAddr::from(section.base).as_hhdm(),
-                PageEntryFlags::ReadWrite,
+                PageEntryFlags::Present | PageEntryFlags::ReadWrite,
                 section.length as usize);
         });
 
+    bootloader_pte.dump();
     kernel_pt.dump();
 
-    let cr2: VirtAddr = VirtAddr::try_from(0xffff80007a39f132).unwrap();
+    /*kernel_pt.map_page::<BumpAllocator>(
+                0x0.into(),
+                VirtAddr::try_from(0xffff80007a3bf138).unwrap(),
+                PageEntryFlags::from_bits_retain(0),
+                );*/
+
+    let cr2: VirtAddr = VirtAddr::try_from(0xffffffff8001d050).unwrap();
     let pte_old = bootloader_pte.get_pte::<BumpAllocator>(cr2, false, PageEntryFlags::empty());
     let pte_new = kernel_pt.get_pte::<BumpAllocator>(cr2, false, PageEntryFlags::empty());
 
     unsafe { cr2.dump_offsets() };
-    debug!("CR2 Address on OLD PT ? {}, {:02x}", pte_old.is_ok(), pte_old.unwrap().read().get_address() + cr2.get_level_offset(paging::PaginationLevel::Physical) as usize);
-    debug!("CR2 Address on NEW PT ? {}, {:02x}", pte_new.is_ok(), pte_new.unwrap().read().get_address() + cr2.get_level_offset(paging::PaginationLevel::Physical) as usize);
+    debug!("CR2 Address on OLD PT ? {}, {}, PTE_addr={:02x} ADD_off={:02x} Final={:02x}",
+        pte_old.is_ok(),
+        pte_old.unwrap().read().get_flags().bits(),
+        pte_old.unwrap().read().get_address(),
+        cr2.get_level_offset(paging::PaginationLevel::Physical) as usize,
+        pte_old.unwrap().read().get_address() + cr2.get_level_offset(paging::PaginationLevel::Physical) as usize);
+    debug!("CR2 Address on NEW PT ? {}, {}, PTE_addr={:02x} ADD_off={:02x} Final={:02x}",
+        pte_new.is_ok(),
+        pte_new.unwrap().read().get_flags().bits(),
+        pte_new.unwrap().read().get_address(),
+        cr2.get_level_offset(paging::PaginationLevel::Physical) as usize,
+        pte_new.unwrap().read().get_address() + cr2.get_level_offset(paging::PaginationLevel::Physical) as usize);
     kernel_pt.load();
     debug!("Loaded new PT.");
     while 1 == 1 {

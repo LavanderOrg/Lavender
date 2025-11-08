@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::libs::arch::x86_64::gdt::SegmentSelector;
+use crate::{debug, libs::arch::x86_64::gdt::SegmentSelector};
 
 #[repr(u8)]
 pub enum IdtGateType {
@@ -67,6 +67,7 @@ impl IdtGateDescriptor {
 
 // TODO: Refactor
 pub fn load(idtr: &IdtDescriptor) {
+    debug!("Loading IDT at address {:02x}", idtr.idt_offset as u64);
     unsafe {
         asm!(
             "cli",

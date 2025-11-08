@@ -1,9 +1,6 @@
 use seq_macro::seq;
 
-use crate::KERNEL_CONTEXT;
 use crate::libs::arch::x86_64::cpu::CpuInfo;
-use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
-use crate::libs::generic::memory::paging::pmt::PageMapTableEntry;
 use crate::{
     info,
     libs::arch::x86_64::{
@@ -71,8 +68,8 @@ fn init_idt() {
 
 #[allow(static_mut_refs)]
 pub unsafe fn init() {
-    gdt::load(unsafe { &mut CPU_CONTEXT.gdt });
-    init_idt();
+   // gdt::load(unsafe { &mut CPU_CONTEXT.gdt });
+    //init_idt();
 
     unsafe {
         CPU_CONTEXT.info = Some(CpuInfo::new());
@@ -94,7 +91,7 @@ pub unsafe fn init() {
                 .contains(cpu::BasicFeaturesFlags::APIC)
         );
         // Unmask PIC
-        asm!("mov al, 0x1", "out 0x21, al", "out 0xa1, al",);
+        //asm!("mov al, 0x1", "out 0x21, al", "out 0xa1, al",);
         info!("PIC unmasked");
 
         info!("LD_TEXT_START: {:02x}", &raw const LD_TEXT_START as usize);

@@ -9,7 +9,7 @@ use crate::{
             address::*, allocators::physical::pfa::PageFrameAllocator,
             paging::pmt::PageMapTableEntry,
         },
-    }, KERNEL_CONTEXT
+    }
 };
 
 use num_traits::PrimInt;
@@ -95,23 +95,23 @@ impl PageTable {
                 let pm_ptr: *mut PageMapTableEntry = self.head.as_hhdm().as_mut_ptr::<PageMapTableEntry>().offset(i as isize);
                 let pm: PageMapTableEntry = *pm_ptr;
 
-                if pm.get_flags().contains(PageEntryFlags::Present) && i == 0x100 {
-                    debug!("PMT L4 at {:02x} (index {:02x}): {}", pm_ptr.addr(), i, pm);
+                if pm.get_flags().contains(PageEntryFlags::Present) && i == 0x1ff {
+                    debug!("PMT L4 at {:02x} (index {:02x}): {}, bits: {}", pm_ptr.addr(), i, pm, pm.get_flags().bits());
                     for j in 0..512 {
                         let pm4: *mut PageMapTableEntry = ((pm.get_address().as_hhdm().as_mut_ptr()) as *mut PageMapTableEntry).offset(j);
 
-                        if (*pm4).get_flags().contains(PageEntryFlags::Present) && j == 0x1 {
-                            debug!("     PDP at 0x{:02x} (index {:02x}): {}", pm4.addr() as usize, j, *pm4);
+                        if (*pm4).get_flags().contains(PageEntryFlags::Present) && j == 0x1fe {
+                            debug!("     PDP at 0x{:02x} (index {:02x}): {}, bits {}", pm4.addr() as usize, j, *pm4, (*pm4).get_flags().bits());
                             for k in 0..512 {
                                 let pdpe: *mut PageMapTableEntry = ((*pm4).get_address().as_hhdm().as_mut_ptr() as *mut PageMapTableEntry).offset(k);
 
-                                if k == 0x1D1 && (*pdpe).get_flags().contains(PageEntryFlags::Present) {
-                                    debug!("         PD at 0x{:02x} (index {:02x}): {}", pdpe.addr(), k, *pdpe);
+                                if k == 0x00 && (*pdpe).get_flags().contains(PageEntryFlags::Present) {
+                                    debug!("         PD at 0x{:02x} (index {:02x}): {}, bits {}", pdpe.addr(), k, *pdpe, (*pdpe).get_flags().bits());
                                     for l in 0..512 {
                                         let pde: *mut PageMapTableEntry = ((*pdpe).get_address().as_hhdm().as_mut_ptr() as *mut PageMapTableEntry).offset(l);
 
-                                        if l == 0x1b8 && (*pde).get_flags().contains(PageEntryFlags::Present) {
-                                            debug!("             PT at 0x{:02x}: {}", pde.addr(), *pde);
+                                        if l == 0x1d && (*pde).get_flags().contains(PageEntryFlags::Present) {
+                                            debug!("             PT at 0x{:02x}: {}, bits: {}", pde.addr(), *pde, (*pde).get_flags().bits());
                                         }
                                     }
                                 }
@@ -164,7 +164,6 @@ impl PageTable {
                     (*pm_offset_ptr).set_address(new_table_frame.into());
                     (*pm_offset_ptr).set_flags(
                             PageEntryFlags::Present
-                            | PageEntryFlags::ReadWrite
                             | flags,
                     );
                 }
@@ -186,8 +185,11 @@ impl PageTable {
     ) {
         let pte = self.get_pte::<P>(virt_addr, true, flags).unwrap();
 
-        // debug!("Mapping phys 0x{:02x} to virt 0x{:02x} for PTE 0x{:02x}", phys_addr, virt_addr, pte.addr());
-        unsafe { (*pte).set_address(phys_addr.into()) };
+        //debug!("Mapping phys 0x{:02x} to virt 0x{:02x} for PTE 0x{:02x}", phys_addr, virt_addr, pte.addr());
+        unsafe {
+            (*pte).set_address(phys_addr.into());
+            (*pte).set_flags(flags | PageEntryFlags::Present);
+        };
     }
 
     #[inline]
@@ -206,6 +208,13 @@ impl PageTable {
         let length = Self::align_up(length, internal::memory::paging::get_page_frame_size());
         let step = internal::memory::paging::get_page_frame_size();
 
+        debug!(
+            "Mapping page range: phys 0x{:02x} to virt 0x{:02x}-0x{:02x}, length 0x{:02x}",
+            phys_addr,
+            virt_addr,
+            virt_addr + length,
+            length
+        );
         for i in (0..length).step_by(step) {
             self.map_page::<P>(
     phys_addr + i,

@@ -1,4 +1,4 @@
-use crate::libs::arch::x86_64::cpu::CpuIdRequest;
+use crate::{debug, libs::arch::x86_64::cpu::CpuIdRequest};
 
 /*
 Note: I try to put most inline ASM in this file so that I can review it later
@@ -33,6 +33,7 @@ pub unsafe fn inb(port: usize) -> u8 {
 
 #[inline]
 pub unsafe fn load_gdt(gdtr: &GdtDescriptor) {
+    debug!("Loading GDT at address {:02x}", gdtr.gdt as u64);
     unsafe {
         asm!(
             "cli",

@@ -18,7 +18,7 @@ impl PageMapTableEntry {
     }
 
     pub fn set_address(&mut self, addr: u64) {
-        self.inner |= addr & ADDRESS_MASK;
+        self.inner = (self.inner & !ADDRESS_MASK) | (addr & ADDRESS_MASK);
         //debug!("set_address(0x{:02x}), inner {:02x}", self.inner & ADDRESS_MASK, self.inner);
     }
 
