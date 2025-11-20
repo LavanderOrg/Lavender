@@ -1,7 +1,5 @@
 use core::arch::asm;
 
-use crate::debug;
-
 pub fn cr2() -> u64 {
     let cr2: u64;
 

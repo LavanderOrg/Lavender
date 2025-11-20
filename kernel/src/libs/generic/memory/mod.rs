@@ -15,7 +15,6 @@ use crate::libs::generic::memory::address::VirtAddr;
 use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
 use crate::libs::generic::memory::allocators::physical::pfa::PageFrameAllocator;
 use crate::libs::generic::memory::paging::PageTable;
-use limine::memory_map::Entry;
 use limine::{memory_map::EntryType, response::MemoryMapResponse};
 
 pub mod address;

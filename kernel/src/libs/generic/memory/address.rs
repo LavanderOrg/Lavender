@@ -11,7 +11,7 @@ pub struct VirtAddr(u64);
 pub struct PhysAddr(u64);
 
 #[derive(Debug)]
-pub struct NonCanonicalAddress(u64);
+pub struct NonCanonicalAddress();
 
 // TODO: Move arch specific implementations to arch folder (ex: Map levels offsets)
 impl VirtAddr {

@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use crate::{debug, libs::{arch::x86_64::memory::paging::{PageEntryFlags, ADDRESS_MASK}, generic::memory::address::{PhysAddr, VirtAddr}}};
+use crate::{libs::{arch::x86_64::memory::paging::{PageEntryFlags, ADDRESS_MASK}, generic::memory::address::PhysAddr}};
 
 #[derive(Clone, Copy)]
 pub struct PageMapTableEntry {

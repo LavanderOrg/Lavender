@@ -87,7 +87,7 @@ impl<'a> Vga<'a> {
     }
 
     fn handle_csi(&mut self, it: &mut core::str::Chars<'_>) {
-        let command = it.take_while(|x| *x == 'm');
+        let _ = it.take_while(|x| *x == 'm');
 
 
     }
@@ -104,7 +104,7 @@ impl<'a> Vga<'a> {
             font: font.unwrap(),
             cursor_pos: (0, 0),
             background_color: 0x0,
-            foreground_color: 0xFF
+            foreground_color: 0xFFFFFF
         }
     }
 }
