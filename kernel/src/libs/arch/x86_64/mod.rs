@@ -15,6 +15,7 @@ pub mod cpu;
 pub mod gdt;
 pub mod memory;
 pub mod registers;
+pub mod sse;
 pub mod interrupts {
     pub mod ctx;
     pub mod idt;
@@ -93,6 +94,8 @@ pub unsafe fn init() {
         // Unmask PIC
         asm!("mov al, 0x1", "out 0x21, al", "out 0xa1, al",);
         info!("PIC unmasked");
+
+        sse::init().unwrap();
 
         info!("LD_TEXT_START: {:02x}", &raw const LD_TEXT_START as usize);
         info!("LD_TEXT_END: {:02x}", &raw const LD_TEXT_END as usize);
