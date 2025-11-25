@@ -15,6 +15,7 @@ pub struct Vga<'a> {
     background_color: u32
 }
 
+#[allow(dead_code)]
 fn xterm_code_to_color(code: u8) -> u32 {
     let mut r: u8 = 0;
     let mut g: u8 = 0;

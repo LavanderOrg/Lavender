@@ -1,6 +1,6 @@
 use core::{alloc::{GlobalAlloc, Layout}, ffi::c_void};
 
-use crate::libs::generic::memory::allocators::liballoc::{free, liballoc_alloc, malloc};
+use crate::libs::generic::memory::allocators::liballoc::{free, malloc};
 
 struct Allocator {}
 
@@ -36,7 +36,7 @@ unsafe impl GlobalAlloc for Allocator {
         unsafe { malloc(layout.padding_needed_for(layout.align()) + layout.size()) as *mut u8 }
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, _: Layout) {
         unsafe { free(ptr as *mut c_void); }
     }
 }

@@ -12,7 +12,6 @@ use crate::libs::arch::x86_64::LD_TEXT_START;
 use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
 use crate::libs::generic::memory::address::PhysAddr;
 use crate::libs::generic::memory::address::VirtAddr;
-use crate::libs::generic::memory::allocators::liballoc::malloc;
 use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
 use crate::libs::generic::memory::allocators::physical::pfa::PageFrameAllocator;
 use crate::libs::generic::memory::paging::PageTable;
@@ -134,16 +133,15 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
     kernel_pt.load();
     debug!("Loaded new page table, ready to allocate memory.");
 
-    unsafe {
-        let addr = malloc(16024);
-        debug!("Malloc test: Allocated 16024 bytes at {:p}", addr);
-    }
-
     // It should be safe to allocate heap memory now
+    debug!("Memory used before allocations: {} MiB", BumpAllocator::used() / 1024 / 1024);
     let mut vec: Vec<u64> = Vec::new();
 
-    for i in 0..5000 {
+    for i in 0..500000 {
         vec.push(i);
     }
-    debug!("Heap test: Allocated vector with 5000 entries, last entry = {}", vec[4999]);
+    debug!("Heap test: Allocated vector with 500000 entries, last entry = {}", vec[499999]);
+    debug!("Memory used after allocations: {} MiB", BumpAllocator::used() / 1024 / 1024);
+    vec[0] = 42;
+
 }

@@ -1,10 +1,11 @@
-use crate::{KERNEL_CONTEXT, info, libs::arch::x86_64::{CPU_CONTEXT, cpu::BasicFeaturesFlags, registers::*}, warning};
+use crate::{info, libs::arch::x86_64::{CPU_CONTEXT, cpu::BasicFeaturesFlags, registers::*}, warning};
 
 pub fn init() -> Result<(), ()> {
     if !unsafe {
         CPU_CONTEXT.info.as_ref().ok_or(())?
             .basic_features.as_ref().ok_or(())?
                 .flags.contains(BasicFeaturesFlags::SSE) } {
+        // TODO: liballoc is currently built using SSE instructions, so we cannot fallback to emulation yet.
         warning!("SSE not supported on this CPU, defaulting to emulation mode for floating point operations.");
         return Err(());
     }
