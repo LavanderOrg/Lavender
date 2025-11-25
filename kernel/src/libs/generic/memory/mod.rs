@@ -12,10 +12,14 @@ use crate::libs::arch::x86_64::LD_TEXT_START;
 use crate::libs::arch::x86_64::memory::paging::PageEntryFlags;
 use crate::libs::generic::memory::address::PhysAddr;
 use crate::libs::generic::memory::address::VirtAddr;
+use crate::libs::generic::memory::allocators::liballoc::malloc;
 use crate::libs::generic::memory::allocators::physical::bump::BumpAllocator;
 use crate::libs::generic::memory::allocators::physical::pfa::PageFrameAllocator;
 use crate::libs::generic::memory::paging::PageTable;
 use limine::{memory_map::EntryType, response::MemoryMapResponse};
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 pub mod address;
 pub mod paging;
@@ -25,6 +29,8 @@ pub mod allocators {
         pub mod bump;
         pub mod pfa;
     }
+    pub mod liballoc;
+    pub mod global;
 }
 
 fn remap_kernel_section(new_pt: &mut PageTable, old_pt: &mut PageTable, section_address_start: VirtAddr, section_address_end: VirtAddr, flags: PageEntryFlags) {
@@ -127,4 +133,17 @@ pub fn init(mmap: Option<&'static MemoryMapResponse>) {
     debug!("Mapped usable memory sections.");
     kernel_pt.load();
     debug!("Loaded new page table, ready to allocate memory.");
+
+    unsafe {
+        let addr = malloc(16024);
+        debug!("Malloc test: Allocated 16024 bytes at {:p}", addr);
+    }
+
+    // It should be safe to allocate heap memory now
+    let mut vec: Vec<u64> = Vec::new();
+
+    for i in 0..5000 {
+        vec.push(i);
+    }
+    debug!("Heap test: Allocated vector with 5000 entries, last entry = {}", vec[4999]);
 }

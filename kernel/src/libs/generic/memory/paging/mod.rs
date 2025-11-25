@@ -195,6 +195,7 @@ impl PageTable {
     #[inline]
     pub fn align_up<T: PrimInt>(value: T, alignment: T) -> T {
         let mask = alignment - T::one();
+
         (value + mask) & !mask
     }
 

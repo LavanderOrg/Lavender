@@ -22,14 +22,14 @@ pub mod interrupts {
     pub mod isr;
 }
 
-struct CpuContext {
+pub struct CpuContext {
     gdt: [u64; 5],
     idtr: Option<IdtDescriptor>,
     info: Option<CpuInfo>,
 }
 
 // NOTE: Yeah buddy you'll have to modify some of that for multi-proc support innit bruv
-static mut CPU_CONTEXT: CpuContext = CpuContext {
+pub static mut CPU_CONTEXT: CpuContext = CpuContext {
     gdt: [0, 0, 0, 0, 0],
     idtr: None,
     info: None,

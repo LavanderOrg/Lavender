@@ -9,4 +9,5 @@ fn main() {
         println!("cargo:rustc-link-arg=-Tlinker/{arch}.ld");
         println!("cargo:rerun-if-changed=linker/{arch}.ld");
     }
+    println!("cargo:rustc-link-search=extern/liballoc/");
 }

@@ -13,13 +13,11 @@ impl PageMapTableEntry {
     }
 
     pub fn get_address(&self) -> PhysAddr {
-        //debug!("get_address(), inner {:02x}", self.inner);
         PhysAddr::from(self.inner & ADDRESS_MASK)
     }
 
     pub fn set_address(&mut self, addr: u64) {
         self.inner = (self.inner & !ADDRESS_MASK) | (addr & ADDRESS_MASK);
-        //debug!("set_address(0x{:02x}), inner {:02x}", self.inner & ADDRESS_MASK, self.inner);
     }
 
     pub fn set_flags(&mut self, flags: PageEntryFlags) {

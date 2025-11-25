@@ -19,7 +19,7 @@ pub extern "C" fn generic_handler(_context: *mut Context) {
             );
         }
         _ => panic!(
-            "An unhandled CPU interrupt occured, {} (error code: {:x})\n\n{:?}{:?}",
+            "An unhandled CPU interrupt occured, {} (error code: {:x}, raw: {})\n\n{:?}{:?}",
             match context.isr_index {
                 0x0 => "division by zero",
                 0x1 => "debug instruction",
@@ -28,6 +28,7 @@ pub extern "C" fn generic_handler(_context: *mut Context) {
                 _ => "unknown error",
             },
             context.error_code,
+            context.isr_index,
             context,
             context.registers
         ),

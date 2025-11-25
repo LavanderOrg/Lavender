@@ -51,7 +51,7 @@ impl PageFrameAllocator for BumpAllocator {
             STATE.head += 1;
             if clear {
                 unsafe {
-                    core::ptr::write_bytes(head.as_hhdm().into(), 0, STATE.pfsize as usize);
+                    core::ptr::write_bytes(Into::<*mut u8>::into(head.as_hhdm()), 0, STATE.pfsize as usize);
                 }
             }
         }

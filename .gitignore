@@ -4,3 +4,6 @@ limine/
 iso_root/
 *.iso
 ovmf/
+
+# ignore external while I figure out how to organize submodules
+extern/

@@ -4,6 +4,7 @@
 #![allow(static_mut_refs)]
 #![allow(unused_unsafe)]
 #![allow(unconditional_panic)]
+#![feature(alloc_layout_extra)]
 
 pub mod context;
 pub mod libs;

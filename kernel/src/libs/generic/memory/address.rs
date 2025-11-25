@@ -1,5 +1,5 @@
 use core::{fmt::{Formatter, LowerHex}, ops::{Add, Sub}};
-
+use core::ffi::c_void;
 use crate::{
     debug, libs::{arch, generic::memory::paging::PaginationLevel}, KERNEL_CONTEXT
 };
@@ -45,6 +45,12 @@ impl VirtAddr {
 impl Into<*mut u8> for VirtAddr {
     fn into(self) -> *mut u8 {
         self.0 as *mut u8
+    }
+}
+
+impl Into<*mut c_void> for VirtAddr {
+    fn into(self) -> *mut c_void {
+        self.0 as *mut c_void
     }
 }
 
