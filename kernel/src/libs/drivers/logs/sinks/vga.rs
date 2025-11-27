@@ -7,7 +7,7 @@ static FONT_DATA: &[u8] = include_bytes!("../../../../../resources/fonts/zap-lig
 // This is a naive, non-optimized VGA text mode driver.
 // It is only intended to be used for displaying text when no memory management is available.
 // It doesn't support scaling yet, since the goal is to just hand over control to a better log sink when possible
-pub struct Vga<'a> {
+pub struct VgaSink<'a> {
     framebuffer: &'a Framebuffer<'a>,
     font: PsfFont,
     cursor_pos: (u32, u32),
@@ -40,7 +40,7 @@ fn xterm_code_to_color(code: u8) -> u32 {
     return 0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | b as u32;
 }
 
-impl<'a> Vga<'a> {
+impl<'a> VgaSink<'a> {
     pub fn clear(framebuffer: &'a Framebuffer<'a>, color: u32) {
         for i in (framebuffer.width() * 50)..framebuffer.width() * framebuffer.height() {
             unsafe {
@@ -97,7 +97,7 @@ impl<'a> Vga<'a> {
         let font = PsfFont::parse(FONT_DATA);
 
         if font.is_none() {
-            Vga::clear(framebuffer, 0xFF0000FF);
+            VgaSink::clear(framebuffer, 0xFF0000FF);
             panic!("Failed to parse font data");
         }
         Self {
@@ -110,7 +110,7 @@ impl<'a> Vga<'a> {
     }
 }
 
-impl<'a> Sink for Vga<'a> {
+impl<'a> Sink for VgaSink<'a> {
     fn putchar(&mut self, c: char) {
         if c == '\n' {
             if self.cursor_pos.1 as u64 * self.font.glyph_size.1 as u64

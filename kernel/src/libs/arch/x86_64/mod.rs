@@ -16,6 +16,7 @@ pub mod gdt;
 pub mod memory;
 pub mod registers;
 pub mod sse;
+pub mod serial;
 pub mod interrupts {
     pub mod ctx;
     pub mod idt;
@@ -96,16 +97,6 @@ pub unsafe fn init() {
         info!("PIC unmasked");
 
         sse::init().unwrap();
-
-        info!("LD_TEXT_START: {:02x}", &raw const LD_TEXT_START as usize);
-        info!("LD_TEXT_END: {:02x}", &raw const LD_TEXT_END as usize);
-        info!(
-            "LD_RODATA_START: {:02x}",
-            &raw const LD_RODATA_START as usize
-        );
-        info!("LD_RODATA_END: {:02x}", &raw const LD_RODATA_END as usize);
-        info!("LD_DATA_START: {:02x}", &raw const LD_DATA_START as usize);
-        info!("LD_DATA_END: {:02x}", &raw const LD_DATA_END as usize);
     }
 }
 

@@ -9,9 +9,15 @@
 pub mod context;
 pub mod libs;
 
-use core::arch::asm;
+extern crate alloc;
 
+use core::arch::asm;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
+
+use crate::drivers::logs::sinks::serial::SerialSink;
 use crate::context::{BootInfo, KernelContext};
+use crate::libs::arch::x86_64::serial;
 use crate::libs::generic::logging::logger::Logger;
 use crate::libs::generic::memory;
 use crate::libs::{arch, drivers};
@@ -190,7 +196,7 @@ unsafe extern "C" fn kmain() -> ! {
             ..Default::default()
         };
         KERNEL_CONTEXT.framebuffer = Some(fb_request.unwrap());
-        KERNEL_CONTEXT.vga = Some(drivers::logs::sinks::vga::Vga::new(
+        KERNEL_CONTEXT.vga = Some(drivers::logs::sinks::vga::VgaSink::new(
             KERNEL_CONTEXT.framebuffer.as_ref().unwrap(),
         ));
         KERNEL_CONTEXT.logger = Some(Logger::new(KERNEL_CONTEXT.vga.as_mut().unwrap()));
@@ -202,6 +208,19 @@ unsafe extern "C" fn kmain() -> ! {
     arch::init();
     memory::init(KMMAP_REQUEST.get_response());
 
+    // We can now allocate memory.
+    unsafe {
+        let logger: &mut Logger = KERNEL_CONTEXT.logger.as_mut().unwrap();
+
+        logger.sinks = Some(Vec::new());
+        logger.add_sink(Box::new(KERNEL_CONTEXT.vga.take().unwrap()));
+        if let Some(serial_sink) = SerialSink::new() {
+            logger.add_sink(Box::new(serial_sink));
+            info!("Serial sink initialized !");
+        } else {
+            warning!("Failed to initialize serial sink !");
+        }
+    }
     let ptr = 0xdeadbeef as *mut u8;
 
     unsafe {

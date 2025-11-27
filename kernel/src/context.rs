@@ -1,6 +1,6 @@
 use core::time::Duration;
 use limine::{framebuffer::Framebuffer, paging::Mode, response::MemoryMapResponse};
-use crate::libs::{drivers::logs::sinks::vga::Vga, generic::logging::logger::Logger};
+use crate::libs::{drivers::logs::sinks::vga::VgaSink, generic::logging::logger::Logger};
 
 #[derive(Default)]
 pub struct BootInfo<'a> {
@@ -17,7 +17,7 @@ pub struct BootInfo<'a> {
 pub struct KernelContext<'a> {
     pub framebuffer: Option<Framebuffer<'a>>,
     // I hate myself for this.
-    pub vga: Option<Vga<'a>>,
+    pub vga: Option<VgaSink<'a>>,
     pub logger: Option<Logger<'a>>,
     pub boot_info: BootInfo<'a>,
 }

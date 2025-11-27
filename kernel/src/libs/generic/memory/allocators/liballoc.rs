@@ -21,7 +21,6 @@ pub extern "C" fn liballoc_unlock() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn liballoc_free(_ptr: *mut c_void, _: i32) {
-    debug!("Freeing memory at {:p}", _ptr);
 }
 
 #[unsafe(no_mangle)]
